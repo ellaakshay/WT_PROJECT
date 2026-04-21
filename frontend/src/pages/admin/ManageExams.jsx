@@ -11,6 +11,14 @@ const ManageExams = () => {
   const [showQuestionPanel, setShowQuestionPanel] = useState(false);
   const [questions, setQuestions] = useState([{ questionText: '', options: ['', '', '', ''], correctAnswer: 'A' }]);
   const [saving, setSaving] = useState(false);
+  const [aiTopic, setAiTopic] = useState("");
+  const [aiCount, setAiCount] = useState(5);
+  const [aiDifficulty, setAiDifficulty] = useState("medium");
+  const [generating, setGenerating] = useState(false);
+  const [triviaCategory, setTriviaCategory] = useState("");
+  const [triviaAmount, setTriviaAmount] = useState(5);
+  const [triviaDifficulty, setTriviaDifficulty] = useState("medium");
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     fetchExams();
@@ -55,6 +63,70 @@ const ManageExams = () => {
       fetchExams();
     } catch (error) {
       toast.error('Failed to delete exam');
+    }
+  };
+
+  const handleGenerateQuestions = async () => {
+    if (!selectedExam) {
+      toast.error("Please select an exam first");
+      return;
+    }
+    if (!aiTopic.trim()) {
+      toast.error("Please enter a topic for AI to generate questions");
+      return;
+    }
+    
+    setGenerating(true);
+    try {
+      const res = await API.post(
+        `/exams/${selectedExam._id}/generate-questions`,
+        {
+          topic: aiTopic,
+          count: aiCount,
+          difficulty: aiDifficulty
+        }
+      );
+      
+      toast.success(res.data.message);
+      setAiTopic("");
+      
+      // Reload questions list to show new AI-generated questions
+      const updated = await API.get(`/exams/${selectedExam._id}`);
+      setQuestions(updated.data.questions || updated.data.data?.questions || []);
+      
+    } catch (err) {
+      console.error("AI generation error:", err);
+      const msg = err.response?.data?.message || "Failed to generate questions";
+      toast.error(msg);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleImportTrivia = async () => {
+    if (!selectedExam) {
+      toast.error("Please select an exam first");
+      return;
+    }
+    setImporting(true);
+    try {
+      const payload = {
+        amount: triviaAmount,
+        difficulty: triviaDifficulty
+      };
+      if (triviaCategory) payload.category = triviaCategory;
+
+      const res = await API.post(
+        `/exams/${selectedExam._id}/import-trivia`,
+        payload
+      );
+      toast.success(res.data.message);
+      const updated = await API.get(`/exams/${selectedExam._id}`);
+      setQuestions(updated.data.questions || []);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Import failed");
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -233,6 +305,333 @@ const ManageExams = () => {
                 </div>
                 
                 <p style={{ color: "#718096", fontSize: "14px", marginBottom: "16px" }}>{selectedExam.title}</p>
+
+                {/* ── Trivia Import Panel ── */}
+                <div style={{
+                  background: "white",
+                  borderRadius: "16px",
+                  padding: "28px",
+                  marginBottom: "24px",
+                  border: "2px solid #10B981",
+                  boxShadow: "0 4px 20px rgba(16,185,129,0.12)",
+                }}>
+                  <div style={{
+                    display: "flex", alignItems: "center",
+                    gap: "10px", marginBottom: "20px",
+                  }}>
+                    <div style={{
+                      width: "40px", height: "40px",
+                      background: "linear-gradient(135deg, #10B981, #3B82F6)",
+                      borderRadius: "10px",
+                      display: "flex", alignItems: "center",
+                      justifyContent: "center", fontSize: "20px",
+                    }}>
+                      🌐
+                    </div>
+                    <div>
+                      <h3 style={{ fontSize:"17px", fontWeight:"700",
+                        color:"#1a202c", margin:0 }}>
+                        Import from Trivia Database
+                      </h3>
+                      <p style={{ fontSize:"13px", color:"#6B7280", margin:0 }}>
+                        4000+ real questions — No API key needed
+                      </p>
+                    </div>
+                    <span style={{
+                      marginLeft: "auto",
+                      background: "#D1FAE5", color: "#065F46",
+                      padding: "4px 10px", borderRadius: "20px",
+                      fontSize: "11px", fontWeight: "600",
+                    }}>
+                      100% FREE
+                    </span>
+                  </div>
+
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr 1fr",
+                    gap: "12px", marginBottom: "20px",
+                  }}>
+                    <div>
+                      <label style={{ display:"block", fontSize:"13px",
+                        fontWeight:"600", color:"#374151", marginBottom:"6px" }}>
+                        📂 Category
+                      </label>
+                      <select
+                        value={triviaCategory}
+                        onChange={e => setTriviaCategory(e.target.value)}
+                        style={{
+                          width:"100%", padding:"10px 12px",
+                          border:"2px solid #E5E7EB", borderRadius:"10px",
+                          fontSize:"13px", outline:"none", background:"white",
+                        }}
+                      >
+                        <option value="">Any Category</option>
+                        <option value="9">General Knowledge</option>
+                        <option value="17">Science & Nature</option>
+                        <option value="18">Computers</option>
+                        <option value="19">Mathematics</option>
+                        <option value="23">History</option>
+                        <option value="27">Animals</option>
+                        <option value="22">Geography</option>
+                        <option value="20">Mythology</option>
+                        <option value="21">Sports</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ display:"block", fontSize:"13px",
+                        fontWeight:"600", color:"#374151", marginBottom:"6px" }}>
+                        🔢 Questions
+                      </label>
+                      <select
+                        value={triviaAmount}
+                        onChange={e => setTriviaAmount(Number(e.target.value))}
+                        style={{
+                          width:"100%", padding:"10px 12px",
+                          border:"2px solid #E5E7EB", borderRadius:"10px",
+                          fontSize:"13px", outline:"none", background:"white",
+                        }}
+                      >
+                        <option value={5}>5 Questions</option>
+                        <option value={10}>10 Questions</option>
+                        <option value={15}>15 Questions</option>
+                        <option value={20}>20 Questions</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ display:"block", fontSize:"13px",
+                        fontWeight:"600", color:"#374151", marginBottom:"6px" }}>
+                        🎯 Difficulty
+                      </label>
+                      <select
+                        value={triviaDifficulty}
+                        onChange={e => setTriviaDifficulty(e.target.value)}
+                        style={{
+                          width:"100%", padding:"10px 12px",
+                          border:"2px solid #E5E7EB", borderRadius:"10px",
+                          fontSize:"13px", outline:"none", background:"white",
+                        }}
+                      >
+                        <option value="">Any Difficulty</option>
+                        <option value="easy">🟢 Easy</option>
+                        <option value="medium">🟡 Medium</option>
+                        <option value="hard">🔴 Hard</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleImportTrivia}
+                    disabled={importing}
+                    style={{
+                      width:"100%", padding:"13px",
+                      background: importing
+                        ? "#D1D5DB"
+                        : "linear-gradient(135deg, #10B981, #3B82F6)",
+                      color: importing ? "#9CA3AF" : "white",
+                      border:"none", borderRadius:"10px",
+                      fontSize:"15px", fontWeight:"700",
+                      cursor: importing ? "not-allowed" : "pointer",
+                      display:"flex", alignItems:"center",
+                      justifyContent:"center", gap:"8px",
+                    }}
+                  >
+                    {importing ? "Importing Questions..." : "🌐 Import Real Questions"}
+                  </button>
+                </div>
+
+                {/* ── AI Question Generator Panel ── */}
+                <div style={{
+                  background: "white",
+                  borderRadius: "16px",
+                  padding: "28px",
+                  marginBottom: "24px",
+                  border: "2px solid #8B5CF6",
+                  boxShadow: "0 4px 20px rgba(139,92,246,0.12)",
+                }}>
+                  
+                  {/* Header */}
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    marginBottom: "20px",
+                  }}>
+                    <div style={{
+                      width: "40px", height: "40px",
+                      background: "linear-gradient(135deg, #8B5CF6, #EC4899)",
+                      borderRadius: "10px",
+                      display: "flex", alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "20px",
+                    }}>
+                      🤖
+                    </div>
+                    <div>
+                      <h3 style={{
+                        fontSize: "17px", fontWeight: "700",
+                        color: "#1a202c", margin: 0,
+                      }}>
+                        AI Question Generator
+                      </h3>
+                      <p style={{ fontSize: "13px", color: "#6B7280", margin: 0 }}>
+                        Powered by Google Gemini AI
+                      </p>
+                    </div>
+                    <span style={{
+                      marginLeft: "auto",
+                      background: "#EDE9FE", color: "#5B21B6",
+                      padding: "4px 10px", borderRadius: "20px",
+                      fontSize: "11px", fontWeight: "600",
+                    }}>
+                      FREE AI
+                    </span>
+                  </div>
+
+                  {/* Topic Input */}
+                  <div style={{ marginBottom: "16px" }}>
+                    <label style={{
+                      display: "block", fontSize: "13px",
+                      fontWeight: "600", color: "#374151", marginBottom: "6px",
+                    }}>
+                      📚 Topic / Subject
+                    </label>
+                    <input
+                      type="text"
+                      value={aiTopic}
+                      onChange={e => setAiTopic(e.target.value)}
+                      placeholder="e.g. Basic Mathematics, Web Technologies, Python Programming..."
+                      style={{
+                        width: "100%", padding: "11px 14px",
+                        border: "2px solid #E5E7EB", borderRadius: "10px",
+                        fontSize: "14px", color: "#1a202c",
+                        outline: "none", boxSizing: "border-box",
+                        transition: "border-color 0.2s",
+                      }}
+                      onFocus={e => e.target.style.borderColor = "#8B5CF6"}
+                      onBlur={e => e.target.style.borderColor = "#E5E7EB"}
+                      onKeyDown={e => e.key === "Enter" && handleGenerateQuestions()}
+                    />
+                  </div>
+
+                  {/* Count and Difficulty Row */}
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "12px", marginBottom: "20px",
+                  }}>
+                    <div>
+                      <label style={{
+                        display: "block", fontSize: "13px",
+                        fontWeight: "600", color: "#374151", marginBottom: "6px",
+                      }}>
+                        🔢 Number of Questions
+                      </label>
+                      <select
+                        value={aiCount}
+                        onChange={e => setAiCount(Number(e.target.value))}
+                        style={{
+                          width: "100%", padding: "10px 14px",
+                          border: "2px solid #E5E7EB", borderRadius: "10px",
+                          fontSize: "14px", color: "#374151",
+                          outline: "none", cursor: "pointer",
+                          background: "white",
+                        }}
+                      >
+                        <option value={3}>3 Questions</option>
+                        <option value={5}>5 Questions</option>
+                        <option value={10}>10 Questions</option>
+                        <option value={15}>15 Questions</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label style={{
+                        display: "block", fontSize: "13px",
+                        fontWeight: "600", color: "#374151", marginBottom: "6px",
+                      }}>
+                        🎯 Difficulty Level
+                      </label>
+                      <select
+                        value={aiDifficulty}
+                        onChange={e => setAiDifficulty(e.target.value)}
+                        style={{
+                          width: "100%", padding: "10px 14px",
+                          border: "2px solid #E5E7EB", borderRadius: "10px",
+                          fontSize: "14px", color: "#374151",
+                          outline: "none", cursor: "pointer",
+                          background: "white",
+                        }}
+                      >
+                        <option value="easy">🟢 Easy</option>
+                        <option value="medium">🟡 Medium</option>
+                        <option value="hard">🔴 Hard</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Generate Button */}
+                  <button
+                    onClick={handleGenerateQuestions}
+                    disabled={generating || !aiTopic.trim()}
+                    style={{
+                      width: "100%",
+                      padding: "14px",
+                      background: generating || !aiTopic.trim()
+                        ? "#D1D5DB"
+                        : "linear-gradient(135deg, #8B5CF6, #EC4899)",
+                      color: generating || !aiTopic.trim() ? "#9CA3AF" : "white",
+                      border: "none",
+                      borderRadius: "10px",
+                      fontSize: "15px",
+                      fontWeight: "700",
+                      cursor: generating || !aiTopic.trim() ? "not-allowed" : "pointer",
+                      transition: "all 0.2s",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                    }}
+                  >
+                    {generating ? (
+                      <>
+                        <span style={{
+                          display: "inline-block",
+                          width: "18px", height: "18px",
+                          border: "2px solid #9CA3AF",
+                          borderTopColor: "#6B7280",
+                          borderRadius: "50%",
+                          animation: "spin 0.8s linear infinite",
+                        }} />
+                        Generating Questions with AI...
+                      </>
+                    ) : (
+                      <>✨ Generate Questions with AI</>
+                    )}
+                  </button>
+
+                  {/* Info text */}
+                  <p style={{
+                    textAlign: "center", fontSize: "12px",
+                    color: "#9CA3AF", marginTop: "10px", margin: "10px 0 0",
+                  }}>
+                    AI will create complete MCQ questions with 4 options and correct answers
+                  </p>
+                </div>
+
+                {/* Separator */}
+                <div style={{
+                  display: "flex", alignItems: "center",
+                  gap: "12px", marginBottom: "24px",
+                }}>
+                  <div style={{ flex: 1, height: "1px", background: "#E5E7EB" }} />
+                  <span style={{ fontSize: "13px", color: "#9CA3AF", fontWeight: "500" }}>
+                    OR add question manually
+                  </span>
+                  <div style={{ flex: 1, height: "1px", background: "#E5E7EB" }} />
+                </div>
 
                 {questions.map((q, index) => (
                   <div key={index} style={{ border: "1px solid #E5E7EB", borderRadius: "12px", padding: "16px", marginBottom: "16px" }}>

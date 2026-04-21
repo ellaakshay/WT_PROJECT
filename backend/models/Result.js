@@ -11,7 +11,7 @@ const resultSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Exam',
     required: true
-  },
+  },  
   score: {
     type: Number,
     required: true,
